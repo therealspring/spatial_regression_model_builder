@@ -1,6 +1,4 @@
 
-
-
 function maskCloudAndShadows(image) {
   var cloudProb = image.select('MSK_CLDPRB');
   var snowProb = image.select('MSK_SNWPRB');
@@ -14,30 +12,56 @@ function maskCloudAndShadows(image) {
   return image.updateMask(mask);
 }
 
-function addNDVI(image) {
+function calculateNDVI(image) {
   var ndvi = image.normalizedDifference(['B8', 'B4']).rename('ndvi');
   return ndvi;
-  //return image.addBands([ndvi]);
 }
 
-var all_bands = ee.Image();
-
 var year = 2019;
+var copernicus = ee.ImageCollection('COPERNICUS/S2_SR');
 var dates = ['2019-01-01', '2019-01-31', '2019-02-01', '2019-02-28', '2019-03-01', '2019-03-31', '2019-04-01', '2019-04-30', '2019-05-01', '2019-05-31', '2019-06-01', '2019-06-30', '2019-07-01', '2019-07-31', '2019-08-01', '2019-08-31', '2019-09-01', '2019-09-30', '2019-10-01', '2019-10-31', '2019-11-01', '2019-11-30', '2019-12-01', '2019-12-31'];
+var ndvi_array = [];
+var ndvi_fieldname_array = [];
+var ndvi_image = null;
+sample_points = sample_points.select('Rangelandmetricscore');
 for (var month_index = 0; month_index < 12; month_index++){
   var startDate =  dates[month_index*2];
-  var endDate = dates[month_index*2+1];;
+  var endDate = dates[month_index*2+1];
   var ndvi_fieldname = 'ndvi_2019_'+(1+month_index);
-  var copernicus = ee.ImageCollection('COPERNICUS/S2_SR');
+  ndvi_fieldname_array.push(ndvi_fieldname);
 
   var ndvi = copernicus
       .filterDate(startDate, endDate)
       .map(maskCloudAndShadows)
-      .map(addNDVI)
-      .filter(ee.Filter.bounds(sample_points)).mean();
-  print(ndvi);
-  Map.addLayer(ndvi, null, ndvi_fieldname);
+      .map(calculateNDVI)
+      .filter(ee.Filter.bounds(sample_points)).mean().select(['ndvi'], [ndvi_fieldname]);
+  if (ndvi_image === null) {
+    ndvi_image = ndvi;
+  } else {
+    ndvi_image = ndvi_image.addBands(ndvi);
+  }
+}
 
+print(ndvi_image);
+
+var ndvi_samples = ndvi_image.sampleRegions({
+  collection: sample_points,
+  scale: 10,
+});
+
+print(ndvi_samples);
+
+/*
+var ndvi_collection = ee.ImageColletion(ndvi_array);
+print(ndvi_collection);
+
+var ndvi_sample = ndvi_collection.reduce({
+  collection: sample_points,
+  reducer: ee.Reducer.first(),
+  scale: 10});
+print(ndvi_sample);
+
+*/
   /*
   var ndvi_image = ndvi.map(function(image) {
   return image.select(ndvi_year).reduceRegions({
@@ -54,8 +78,6 @@ for (var month_index = 0; month_index < 12; month_index++){
     });
   }).flatten();
     */
-
-}
 
 var modis_collection = ee.ImageCollection('MODIS/006/MCD12Q2');
 // these variables are measured in days since 1-1-1970
