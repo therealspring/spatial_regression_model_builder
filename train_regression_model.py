@@ -99,7 +99,7 @@ def load_data(
     dataset_map = {}
     fields_to_drop_list = []
     for train_holdback_type, train_holdback_val in [
-            ('holdback', [True, 'TRUE']), ('train', [False, 'FALSE'])]:
+            ('holdback', [True, 'TRUE', 'true']), ('train', [False, 'FALSE', 'false'])]:
         gdf_filtered = gdf[gdf['holdback'].isin(train_holdback_val)]
 
         # drop fields that request it
@@ -373,8 +373,7 @@ def main():
             for row in interaction_df.iterrows()]
         LOGGER.debug(interaction_indexes)
         poly_features = CustomPairInteraction(
-            interaction_columns=interaction_indexes)
-        return
+            interaction_pairs=interaction_indexes)
     else:
         poly_features = PolynomialFeatures(
             POLY_ORDER, interaction_only=False, include_bias=False)
@@ -382,9 +381,9 @@ def main():
     for name, reg in [
             ('LinearSVR_v2', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='epsilon_insensitive', epsilon=1e-4, dual=True))),
             #('LinearSVR_v3', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='squared_epsilon_insensitive', epsilon=1e-4, dual=False))),
-            ('LassoLarsCV', make_pipeline(poly_features, StandardScaler(),  LassoLarsCV(max_iter=max_iter, cv=10, eps=1e-3, normalize=False))),
+            #('LassoLarsCV', make_pipeline(poly_features, StandardScaler(),  LassoLarsCV(max_iter=max_iter, cv=10, eps=1e-3, normalize=False))),
             #('LassoLars', make_pipeline(poly_features, StandardScaler(),  LassoLars(alpha=.1, normalize=False, max_iter=max_iter, eps=1e-3))),
-            ('Tweedie', make_pipeline(poly_features, StandardScaler(), TweedieRegressor(power=0.0, alpha=1.0, fit_intercept=True, link='auto', max_iter=max_iter, tol=0.0001, warm_start=False, verbose=0))),
+            #('Tweedie', make_pipeline(poly_features, StandardScaler(), TweedieRegressor(power=0.0, alpha=1.0, fit_intercept=True, link='auto', max_iter=max_iter, tol=0.0001, warm_start=False, verbose=0))),
             ]:
 
         LOGGER.info(f'fitting data with {name}')
@@ -426,6 +425,9 @@ def main():
                 trendline_func(expected_values),
                 "r--", linewidth=1.5)
             plt.scatter(expected_values, modeled_values, c='g', s=0.25)
+            plt.xlim(
+                min(min(modeled_values), min(expected_values)),
+                max(max(modeled_values), max(expected_values)))
             plt.ylim(
                 min(min(modeled_values), min(expected_values)),
                 max(max(modeled_values), max(expected_values)))

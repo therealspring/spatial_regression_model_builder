@@ -26,7 +26,7 @@ class CustomPairInteraction(TransformerMixin, BaseEstimator):
         """
         feature_names = input_features.copy()
 
-        for term_a_index, term_b_index in enumerate(self.interaction_pairs):
+        for term_a_index, term_b_index in self.interaction_pairs:
             feature_names.append(
                 f'{input_features[term_a_index]}*'
                 f'{input_features[term_b_index]}')
