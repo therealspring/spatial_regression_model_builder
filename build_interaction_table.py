@@ -1,11 +1,7 @@
+import re
 
 def main():
     """Entry point."""
-import re
-
-if __name__ == '__main__':
-    main()
-
     day_temp = [
         'LST_Day_1km_01-01',
         'LST_Day_1km_02-01',
@@ -18,7 +14,8 @@ if __name__ == '__main__':
         'LST_Day_1km_09-01',
         'LST_Day_1km_10-01',
         'LST_Day_1km_11-01',
-        'LST_Day_1km_12-01',]
+        'LST_Day_1km_12-01',
+        ]
     night_temp = [
         'LST_Night_1km_01-01',
         'LST_Night_1km_02-01',
@@ -76,3 +73,7 @@ if __name__ == '__main__':
     print(precip_str, end='')
     print(night_str, end='')
     print(day_str)
+
+
+if __name__ == '__main__':
+    main()
