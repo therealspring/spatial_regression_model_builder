@@ -20,6 +20,7 @@ from sklearn.preprocessing import SplineTransformer
 from sklearn.compose import TransformedTargetRegressor
 
 from CustomInteraction import CustomInteraction
+from CustomPairInteraction import CustomPairInteraction
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -371,6 +372,8 @@ def main():
              predictor_id_list.index(row[1][1]))
             for row in interaction_df.iterrows()]
         LOGGER.debug(interaction_indexes)
+        poly_features = CustomPairInteraction(
+            interaction_columns=interaction_indexes)
         return
     else:
         poly_features = PolynomialFeatures(
