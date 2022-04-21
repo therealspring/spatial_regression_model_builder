@@ -1,10 +1,9 @@
-
 var copernicus_collection = ee.ImageCollection('COPERNICUS/S2_SR')
-  .filter(ee.Filter.bounds(sample_points));
+  .filter(ee.Filter.bounds(gobi_poly));
 var modis_collection = ee.ImageCollection('MODIS/006/MOD11A2')
-  .filter(ee.Filter.bounds(sample_points));
+  .filter(ee.Filter.bounds(gobi_poly));
 var chirps_collection = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
-  .filter(ee.Filter.bounds(sample_points));
+  .filter(ee.Filter.bounds(gobi_poly));
 
 function maskCloudAndShadows(image) {
   var cloudProb = image.select('MSK_CLDPRB');
@@ -30,7 +29,7 @@ for (var year=2019; year <= 2021; year++) {
   var local_points = sample_points
     .filter(ee.Filter.eq('Year', year))
     .select(['Condition', 'Veg_cover']);
-  var ndvi_dates = [year+'-06-01', year+'-06-15', year+'-06-16', year+'-06-30', year+'-07-01', year+'-07-15', year+'-07-16', year+'-07-31', year+'-08-01', year+'-08-15', year+'-08-16', year+'-08-31', year+'-09-01', year+'-09-15', year+'-09-16', year+'-09-30', year+'-10-01', year+'-10-15', year+'-10-16', year+'-10-31'];
+  var ndvi_dates = [year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-30', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31'];
   for (var month_index = 0; month_index < ndvi_dates.length/2; month_index++){
     var startDate =  ndvi_dates[month_index*2];
     var endDate = ndvi_dates[month_index*2+1];

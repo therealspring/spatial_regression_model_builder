@@ -1,3 +1,24 @@
+var gobi_poly = ee.Geometry.Polygon([
+  [94.44030433008116,48.019653373738905],
+  [89.93590979883116,47.38380710077589],
+  [86.70592933008116,46.31692409629895],
+  [87.62878089258116,44.60646313164589],
+  [92.52868323633116,43.18150593188955],
+  [101.31774573633116,41.32769589982392],
+  [104.32799964258116,40.8308092616648],
+  [107.79967933008116,41.16248445444609],
+  [113.38073401758116,41.06315714478983],
+  [117.02819495508116,41.82082186478494],
+  [118.19274573633116,44.0247753967212],
+  [119.77477698633116,46.02782355846174],
+  [117.92907386133116,47.204976746235424],
+  [111.16149573633116,47.204976746235424],
+  [106.41540198633116,47.75442885863189],
+  [103.33923011133116,47.13028558462555],
+  [97.49450354883116,47.502691428436826],
+  [94.44030433008116,48.019653373738905]]);
+
+
 var global_image_dict = {};
 
 var veg_cover_model = {
@@ -69,14 +90,14 @@ function make_rangeland_model(model_id, term_list, year) {
   var endDate = null;
 
   var copernicus_collection = ee.ImageCollection('COPERNICUS/S2_SR')
-    .filter(ee.Filter.bounds(sample_points));
+    .filter(ee.Filter.bounds(gobi_poly));
   var modis_collection = ee.ImageCollection('MODIS/006/MOD11A2')
-    .filter(ee.Filter.bounds(sample_points));
+    .filter(ee.Filter.bounds(gobi_poly));
   var chirps_collection = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
-    .filter(ee.Filter.bounds(sample_points));
+    .filter(ee.Filter.bounds(gobi_poly));
 
   var sample_array = [];
-  var ndvi_dates = [year+'-06-01', year+'-06-15', year+'-06-16', year+'-06-30', year+'-07-01', year+'-07-15', year+'-07-16', year+'-07-31', year+'-08-01', year+'-08-15', year+'-08-16', year+'-08-31', year+'-09-01', year+'-09-15', year+'-09-16', year+'-09-30', year+'-10-01', year+'-10-15', year+'-10-16', year+'-10-31'];
+  var ndvi_dates = [year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-30', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31'];
   for (var month_index = 0; month_index < ndvi_dates.length/2; month_index++){
     startDate =  ndvi_dates[month_index*2];
     endDate = ndvi_dates[month_index*2+1];
@@ -86,7 +107,7 @@ function make_rangeland_model(model_id, term_list, year) {
       .map(maskCloudAndShadows)
       .map(calculateNDVI)
       .mean();
-    global_image_dict[ndvi_fieldname] = ndvi.select('ndvi');
+    global_image_dict[ndvi_fieldname] = ndvi.select(['ndvi'], ['B0']);
   }
 
   var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31', year+'-11-01', year+'-11-30', year+'-12-01', year+'-12-31'];
@@ -98,13 +119,13 @@ function make_rangeland_model(model_id, term_list, year) {
     var chirps = chirps_collection
       .filterDate(startDate, endDate)
       .mean();
-    global_image_dict['precipitation_'+fieldname] = chirps.select('precipitation');
+    global_image_dict['precipitation_'+fieldname] = chirps.select(['precipitation'], ['B0']);
 
     var modis = modis_collection
       .filter(ee.Filter.date(startDate, endDate))
       .mean();
-    global_image_dict['LST_Day_1km_'+fieldname] = modis.select('LST_Day_1km');
-    global_image_dict['LST_Night_1km_'+fieldname] = modis.select('LST_Night_1km');
+    global_image_dict['LST_Day_1km_'+fieldname] = modis.select(['LST_Day_1km'], ['B0']);
+    global_image_dict['LST_Night_1km_'+fieldname] = modis.select(['LST_Night_1km'], ['B0']);
   }
 
   var i = null;
@@ -225,7 +246,7 @@ function init_ui() {
                             select_placeholder_list[other_index], false);
                         self.setValue(null, false);
 
-                        active_context.map.centerObject(sample_points);
+                        active_context.map.centerObject(gobi_poly);
                         if (active_context.validation_layer !== null)  {
                             active_context.map.remove(
                                 active_context.validation_layer);
@@ -524,6 +545,7 @@ function init_ui() {
             active_context.point_val.setValue('sampling...');
             var point_sample = active_context.raster.sampleRegions({
               collection: point,
+              scale: 10,
             });
             ee.data.computeValue(point_sample, function (val) {
               if (val.features.length > 0) {
