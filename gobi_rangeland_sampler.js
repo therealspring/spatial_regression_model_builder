@@ -1,9 +1,9 @@
 var copernicus_collection = ee.ImageCollection('COPERNICUS/S2_SR')
-  .filter(ee.Filter.bounds(gobi_poly));
+  .filter(ee.Filter.bounds(sample_points));
 var modis_collection = ee.ImageCollection('MODIS/006/MOD11A2')
-  .filter(ee.Filter.bounds(gobi_poly));
+  .filter(ee.Filter.bounds(sample_points));
 var chirps_collection = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
-  .filter(ee.Filter.bounds(gobi_poly));
+  .filter(ee.Filter.bounds(sample_points));
 
 function maskCloudAndShadows(image) {
   var cloudProb = image.select('MSK_CLDPRB');
