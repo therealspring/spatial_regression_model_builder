@@ -1,7 +1,4 @@
-var global_image_dict = {
-    'baccini_2014': ee.Image.loadGeoTIFF('gs://ecoshard-root/global_carbon_regression_2/cog/cog_wgs84_baccini_carbon_data_2014.tif'),
-    'masked_forest_ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7.tif': ee.Image.loadGeoTIFF('gs://ecoshard-root/global_carbon_regression_2/cog/cog_wgs84_masked_forest_ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7.tif'),
-};
+var global_image_dict = {};
 
 var veg_cover_model = {
     'gobi_veg_model': gobi_veg_model,
@@ -68,7 +65,6 @@ Map.setCenter(0, 0, 3);
 var model_count = Object.keys(veg_cover_model).length;
 
 function make_rangeland_model(model_id, term_list, year) {
-  var data_map = {};
   var startDate = null;
   var endDate = null;
 
@@ -84,35 +80,31 @@ function make_rangeland_model(model_id, term_list, year) {
   for (var month_index = 0; month_index < ndvi_dates.length/2; month_index++){
     startDate =  ndvi_dates[month_index*2];
     endDate = ndvi_dates[month_index*2+1];
-    var ndvi_fieldname = 'ndvi_'+startDate.slice(5,10);
+    var ndvi_fieldname = 'ndvi_'+startDate.slice(5,10).replace(/-/g, "_");
     var ndvi = copernicus_collection
       .filterDate(startDate, endDate)
       .map(maskCloudAndShadows)
       .map(calculateNDVI)
-      .mean()
-      .select(['ndvi'], [ndvi_fieldname]);
-    data_map[ndvi_fieldname] = ndvi;
+      .mean();
+    global_image_dict[ndvi_fieldname] = ndvi.select('ndvi');
   }
 
   var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31', year+'-11-01', year+'-11-30', year+'-12-01', year+'-12-31'];
   for (month_index = 0; month_index < year_dates.length/2; month_index++){
     startDate =  year_dates[month_index*2];
     endDate = year_dates[month_index*2+1];
-    var fieldname = startDate.slice(5,10);
+    var fieldname = startDate.slice(5,10).replace(/-/g, "_");
 
-    var chirps_fieldname = 'precipitation_'+fieldname;
     var chirps = chirps_collection
       .filterDate(startDate, endDate)
-      .mean()
-      .select(['precipitation'], [chirps_fieldname]);
-    data_map[chirps_fieldname] = chirps;
+      .mean();
+    global_image_dict['precipitation_'+fieldname] = chirps.select('precipitation');
 
     var modis = modis_collection
       .filter(ee.Filter.date(startDate, endDate))
       .mean();
-    var modis_fieldname = 'precipitation_'+fieldname;
-    data_map['LST_Night_1km'] = modis.select(['LST_Day_1km', 'LST_Night_1km']);
-    data_map['LST_Night_1km_'+fieldname] = modis.select(['LST_Day_1km_'+fieldname, 'LST_Night_1km_'+fieldname]);
+    global_image_dict['LST_Day_1km_'+fieldname] = modis.select('LST_Day_1km');
+    global_image_dict['LST_Night_1km_'+fieldname] = modis.select('LST_Night_1km');
   }
 
   var i = null;
@@ -132,7 +124,7 @@ function make_rangeland_model(model_id, term_list, year) {
       // add this term to the regression calculation
       var term_image = ee.Image().expression({
           expression: expression_str,
-          map: data_map
+          map: global_image_dict
       });
       rangeland_model_image = rangeland_model_image.add(term_image);
   }
@@ -241,50 +233,50 @@ function init_ui() {
                                 false, false);
                         }
 
-                    if (active_context.last_layer !== null) {
-                        active_context.map.remove(active_context.last_layer);
-                        min_val.setDisabled(true);
-                        max_val.setDisabled(true);
-                    }
-                    if (local_image_dict[key] == '') {
-                        self.setValue(original_value, false);
-                        self.setDisabled(false);
-                        return;
-                    }
-                    active_context.raster = local_image_dict[key];
-
-                    var mean_reducer = ee.Reducer.percentile(
-                        [10, 90], ['p10', 'p90']);
-                    var meanDictionary = active_context.raster.reduceRegion({
-                        reducer: mean_reducer,
-                        geometry: active_context.map.getBounds(true),
-                        bestEffort: true,
-                    });
-
-                    ee.data.computeValue(meanDictionary, function (val) {
-                        active_context.visParams = {
-                            min: val.B0_p10,
-                            max: val.B0_p90,
-                            palette: active_context.visParams.palette,
-                        };
-                        active_context.last_layer = active_context.map.addLayer(
-                            active_context.raster, active_context.visParams);
-
-                        min_val.setValue(active_context.visParams.min, false);
-                        max_val.setValue(active_context.visParams.max, false);
-                        min_val.setDisabled(false);
-                        max_val.setDisabled(false);
-                        self.setValue(original_value, false);
-                        self.setDisabled(false);
-
-                        if (image_type === 'model') {
-                            active_context.model_edge_override.setDisabled(
-                                false);
+                        if (active_context.last_layer !== null) {
+                            active_context.map.remove(active_context.last_layer);
+                            min_val.setDisabled(true);
+                            max_val.setDisabled(true);
                         }
-                        active_context.validation_check.setDisabled(false);
+                        if (local_image_dict[key] === '') {
+                            self.setValue(original_value, false);
+                            self.setDisabled(false);
+                            return;
+                        }
+                        active_context.raster = local_image_dict[key];
+                        var mean_reducer = ee.Reducer.percentile(
+                            [10, 90], ['p10', 'p90']);
+                        var meanDictionary = active_context.raster.reduceRegion({
+                            reducer: mean_reducer,
+                            geometry: active_context.map.getBounds(true),
+                            scale: 300,
+                            bestEffort: true,
+                        });
 
-                    });
-                }
+                        ee.data.computeValue(meanDictionary, function (val) {
+                            active_context.visParams = {
+                                min: val.B0_p10,
+                                max: val.B0_p90,
+                                palette: active_context.visParams.palette,
+                            };
+                            active_context.last_layer = active_context.map.addLayer(
+                                active_context.raster, active_context.visParams);
+
+                            min_val.setValue(active_context.visParams.min, false);
+                            max_val.setValue(active_context.visParams.max, false);
+                            min_val.setDisabled(false);
+                            max_val.setDisabled(false);
+                            self.setValue(original_value, false);
+                            self.setDisabled(false);
+
+                            if (image_type === 'model') {
+                                active_context.model_edge_override.setDisabled(
+                                    false);
+                            }
+                            active_context.validation_check.setDisabled(false);
+
+                        });
+                      }
             });
             select_widget_list.push(select);
             panel.add(select);
