@@ -225,6 +225,7 @@ function init_ui() {
                             select_placeholder_list[other_index], false);
                         self.setValue(null, false);
 
+                        active_context.map.centerObject(sample_points);
                         if (active_context.validation_layer !== null)  {
                             active_context.map.remove(
                                 active_context.validation_layer);
