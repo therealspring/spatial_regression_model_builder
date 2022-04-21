@@ -110,7 +110,7 @@ function make_rangeland_model(model_id, term_list, year) {
     global_image_dict[ndvi_fieldname] = ndvi.select(['ndvi'], ['B0']);
   }
 
-  var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31', year+'-11-01', year+'-11-30', year+'-12-01', year+'-12-31'];
+  var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31'];
   for (month_index = 0; month_index < year_dates.length/2; month_index++){
     startDate =  year_dates[month_index*2];
     endDate = year_dates[month_index*2+1];

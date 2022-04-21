@@ -84,5 +84,5 @@ Map.centerObject(total_samples);
 Export.table.toDrive({
   collection: total_samples,
   folder: 'gee_export',
-  fileNamePrefix: 'gobi_rangeland_'
+  fileNamePrefix: 'gobi_rangeland_ndvi_monthly'
 });
