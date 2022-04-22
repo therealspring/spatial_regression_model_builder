@@ -193,6 +193,15 @@ function init_ui() {
                 'backgroundColor': 'rgba(255, 255, 255, 0.4)'
             }
         });
+        var chart_panel = ui.Panel({
+          layout: ui.Panel.Layout.flow('vertical'),
+            style: {
+                'position': "top-"+mapside[1],
+                'backgroundColor': 'rgba(255, 255, 255, 0.4)'
+            }
+        });
+        active_context.chart_panel = chart_panel;
+        Map.add(chart_panel);
 
         var default_control_text = mapside[1]+' controls';
         var controls_label = ui.Label({
@@ -306,25 +315,31 @@ function init_ui() {
                 });
 
                 var chart =
-                    ui.Chart.feature
-                        .byFeature({
-                          features: validation_collection,
-                          xProperty: 'Veg_cover',
-                          yProperties: ['B0'],
-                        })
-                        .setChartType('ScatterChart')
-                        .setOptions({
-                          title: 'Actual Veg_cover vs ' + active_context.active_map_layer_id,
-                          hAxis:
-                              {title: 'Modeled', titleTextStyle: {italic: false, bold: true}},
-                          vAxis: {
-                            title: 'Raster Value',
-                            titleTextStyle: {italic: false, bold: true}
-                          },
-                          pointSize: 3,
-                          colors: ['009900'],
-                        });
-                print(chart);
+                  ui.Chart.feature
+                    .byFeature({
+                      features: validation_collection,
+                      xProperty: 'Veg_cover',
+                      yProperties: ['B0'],
+                    })
+                    .setChartType('ScatterChart')
+                    .setOptions({
+                      title: 'Actual Veg_cover vs ' + active_context.active_map_layer_id,
+                      hAxis:
+                          {title: 'Modeled', titleTextStyle: {italic: false, bold: true}},
+                      vAxis: {
+                        title: 'Raster Value',
+                        titleTextStyle: {italic: false, bold: true}
+                      },
+                      pointSize: 3,
+                      colors: ['009900'],
+                    });
+                if (active_context.chart_panel === null) {
+
+                }
+                if (active_context.chart !== null) {
+                  active_context.chart_panel.remove(active_context.chart);
+                }
+                active_context.chart_panel.add(chart);
 
                 var agb_vs_b0_color = ee.Dictionary({
                     1: 'blue',
