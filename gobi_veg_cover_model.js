@@ -68,7 +68,6 @@ var model_count = Object.keys(veg_cover_model).length;
 function make_rangeland_model(model_id, term_list, year) {
   var startDate = null;
   var endDate = null;
-
   var copernicus_collection = ee.ImageCollection('COPERNICUS/S2_SR')
     .filter(ee.Filter.bounds(gobi_poly));
   var modis_collection = ee.ImageCollection('MODIS/006/MOD11A2')
@@ -204,8 +203,8 @@ function init_ui() {
         panel.add(controls_label);
         var select_widget_list = [];
         var model_select_index = 1;
-        var select_placeholder_list = ['Select rangeland model ...', 'Select model data ...'];
-        [[global_model_dict, 'model'], [global_image_dict, 'image']].forEach(
+        var select_placeholder_list = ['Select model data ...', 'Select rangeland model ...'];
+        [[global_image_dict, 'image'], [global_model_dict, 'model']].forEach(
             function (payload, index) {
                 var local_image_dict = payload[0];
                 var image_type = payload[1];
@@ -300,22 +299,23 @@ function init_ui() {
             disabled: true,
             onChange: function (checked, self) {
                 var validation_collection = active_context.raster.sampleRegions({
-                    collection: forest_validation_points,
-                    geometries: true
+                    collection: validation_points,
+                    geometries: true,
+                    scale: 10,
                 });
 
                 var chart =
                     ui.Chart.feature
                         .byFeature({
                           features: validation_collection,
-                          xProperty: 'AGB',
+                          xProperty: 'Veg_cover',
                           yProperties: ['B0'],
                         })
                         .setChartType('ScatterChart')
                         .setOptions({
-                          title: 'Actual Biomass vs ' + active_context.active_map_layer_id,
+                          title: 'Actual Veg_cover vs ' + active_context.active_map_layer_id,
                           hAxis:
-                              {title: 'Above Ground Biomass?', titleTextStyle: {italic: false, bold: true}},
+                              {title: 'Modeled', titleTextStyle: {italic: false, bold: true}},
                           vAxis: {
                             title: 'Raster Value',
                             titleTextStyle: {italic: false, bold: true}
@@ -360,8 +360,15 @@ function init_ui() {
             step: 1,
             disabled: true,
             onChange: function (value) {
-                var model_id = select_widget_list[model_select_index].getValue();
+                var model_id = select_widget_list[
+                  model_select_index].getValue();
                 var term_list = model_term_map[model_id];
+                console.log(select_widget_list);
+                console.log(model_select_index);
+                console.log(model_id);
+                console.log(model_term_map);
+                console.log(model_term_map[model_id]);
+                console.log(term_list);
                 var new_model = make_rangeland_model(
                   model_id, term_list, value);
 
