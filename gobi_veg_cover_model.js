@@ -211,11 +211,8 @@ function init_ui() {
                 var image_type = payload[1];
                 var select = ui.Select({
                     placeholder: select_placeholder_list[index],
-                    items: Object.keys(local_image_dict).concat(['test']),
+                    items: Object.keys(local_image_dict),
                     onChange: function(key, self) {
-                        if (key === 'test') {
-                          return;
-                        }
                         active_context.active_map_layer_id = key;
                         self.setDisabled(true);
                         active_context.validation_check.setDisabled(true);
