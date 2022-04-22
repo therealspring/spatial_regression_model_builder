@@ -327,6 +327,9 @@ def _write_coeficient_table(poly_features, predictor_id_list, prefix, name, reg)
             for feature_id, coef, pca, scale, mean in zip(poly_feature_id_list, reg[-1].coef_.flatten(), reg[-2].singular_values_, reg[-3].scale_.flatten(), reg[-3].mean_.flatten()):
                 table_file.write(f"{feature_id.replace(' ', '*')},{coef},{pca},{scale},{mean}\n")
 
+def root_name(path):
+    return os.path.basename(os.path.splitext(path)[0])
+
 
 def main():
     parser = argparse.ArgumentParser(description='DNN model trainer')
@@ -359,12 +362,14 @@ def main():
         args.geopandas_data, args.n_rows,
         args.predictor_response_table, allowed_set)
     LOGGER.info(f'these are the predictors:\n{predictor_id_list}')
+    model_name = f'model_{root_name(args.geopandas_data)}'
     if args.interaction_columns is not None and len(args.interaction_columns) > 0:
         interaction_indexes = [
             predictor_id_list.index(predictor_id)
             for predictor_id in args.interaction_columns]
         poly_features = CustomInteraction(
             interaction_columns=interaction_indexes)
+        model_name += '_interaction_columns'
     elif args.interaction_table is not None:
         interaction_df = pandas.read_csv(args.interaction_table)
         interaction_indexes = [
@@ -374,77 +379,71 @@ def main():
         LOGGER.debug(interaction_indexes)
         poly_features = CustomPairInteraction(
             interaction_pairs=interaction_indexes)
+        model_name += f'_{root_name(args.interaction_table)}'
     else:
         poly_features = PolynomialFeatures(
             POLY_ORDER, interaction_only=False, include_bias=False)
+        model_name += f'_poly_features'
 
-    for name, reg in [
-            ('LinearSVR_v2', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='epsilon_insensitive', epsilon=1e-4, dual=True))),
-            #('LinearSVR_v3', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='squared_epsilon_insensitive', epsilon=1e-4, dual=False))),
-            #('LassoLarsCV', make_pipeline(poly_features, StandardScaler(),  LassoLarsCV(max_iter=max_iter, cv=10, eps=1e-3, normalize=False))),
-            #('LassoLars', make_pipeline(poly_features, StandardScaler(),  LassoLars(alpha=.1, normalize=False, max_iter=max_iter, eps=1e-3))),
-            #('Tweedie', make_pipeline(poly_features, StandardScaler(), TweedieRegressor(power=0.0, alpha=1.0, fit_intercept=True, link='auto', max_iter=max_iter, tol=0.0001, warm_start=False, verbose=0))),
-            ]:
+    reg = make_pipeline(poly_features, StandardScaler(), LinearSVR(
+        max_iter=max_iter, loss='epsilon_insensitive', epsilon=1e-4,
+        dual=True))
+    sample_weight_adjust = True
+    #('LinearSVR_v3', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='squared_epsilon_insensitive', epsilon=1e-4, dual=False))),
+    #('LassoLarsCV', make_pipeline(poly_features, StandardScaler(),  LassoLarsCV(max_iter=max_iter, cv=10, eps=1e-3, normalize=False))),
+    #('LassoLars', make_pipeline(poly_features, StandardScaler(),  LassoLars(alpha=.1, normalize=False, max_iter=max_iter, eps=1e-3))),
+    #('Tweedie', make_pipeline(poly_features, StandardScaler(), TweedieRegressor(power=0.0, alpha=1.0, fit_intercept=True, link='auto', max_iter=max_iter, tol=0.0001, warm_start=False, verbose=0))),
 
-        LOGGER.info(f'fitting data with {name}')
-        kwargs = {}
-        # if name == 'LinearSVR_v2':
-        #     kwargs = {
-        #         reg.steps[-1][0] + '__sample_weight': (trainset[1].flatten()/max(trainset[1]))**1
-        #         }
-        LOGGER.debug(kwargs)
-        model = reg.fit(trainset[0], trainset[1], **kwargs)
-        model_filename = f'{name}_model.dat'
-        LOGGER.info(f'saving model to {model_filename}')
-        with open(model_filename, 'wb') as model_file:
-            model_to_pickle = {
-                'model': model,
-                'predictor_list': predictor_id_list
+    LOGGER.info(f'fitting data with {model_name}')
+    kwargs = {}
+    if sample_weight_adjust:
+        kwargs = {
+            reg.steps[-1][0] + '__sample_weight': (trainset[1].flatten()/max(trainset[1]))**1
             }
-            model_file.write(pickle.dumps(model_to_pickle))
+    LOGGER.debug(kwargs)
+    model = reg.fit(trainset[0], trainset[1], **kwargs)
 
-        LOGGER.info(f'saving coefficient table for {name}')
-        _write_coeficient_table(
-            poly_features, predictor_id_list, args.prefix, name, reg)
+    LOGGER.info(f'saving coefficient table for {model_name}')
+    _write_coeficient_table(
+        poly_features, predictor_id_list, args.prefix, model_name, reg)
 
-        k = trainset[0].shape[1]
-        for expected_values, modeled_values, n, prefix in [
-                (testset[1].flatten(), model.predict(testset[0]).flatten(), testset[0].shape[0], 'holdback'),
-                (trainset[1].flatten(), model.predict(trainset[0]).flatten(), trainset[0].shape[0], 'training'),
-                ]:
-            try:
-                z = numpy.polyfit(expected_values, modeled_values, 1)
-            except ValueError as e:
-                # this guards against a poor polyfit line
-                print(e)
-            trendline_func = numpy.poly1d(z)
-            plt.xlabel('expected values')
-            plt.ylabel('model output')
-            plt.plot(
-                expected_values,
-                trendline_func(expected_values),
-                "r--", linewidth=1.5)
-            plt.scatter(expected_values, modeled_values, c='g', s=0.25)
-            plt.xlim(
-                min(min(modeled_values), min(expected_values)),
-                max(max(modeled_values), max(expected_values)))
-            plt.ylim(
-                min(min(modeled_values), min(expected_values)),
-                max(max(modeled_values), max(expected_values)))
-            r2 = sklearn.metrics.r2_score(expected_values, modeled_values)
-            r2_adjusted = 1-(1-r2)*(n-1)/(n-k-1)
-            if prefix == 'holdback':
-                LOGGER.info(f'{name}-{prefix} adjusted R^2: {r2_adjusted:.3f}')
-            plt.title(
-                f'{args.prefix}{prefix} {name}\n$R^2={r2:.3f}$ -- Adjusted $R^2={r2_adjusted:.3f}$')
-            plt.savefig(os.path.join(
-                FIG_DIR, f'{args.prefix}{name}_{prefix}.png'))
-            plt.close()
-
-        model_structure = {
-            'model': model,
-            'predictor_id_list': predictor_id_list,
-        }
+    k = trainset[0].shape[1]
+    for expected_values, modeled_values, n, prefix in [
+            (testset[1].flatten(), model.predict(
+                testset[0]).flatten(), testset[0].shape[0], 'holdback'),
+            (trainset[1].flatten(), model.predict(
+                trainset[0]).flatten(), trainset[0].shape[0], 'training'),
+            ]:
+        try:
+            z = numpy.polyfit(expected_values, modeled_values, 1)
+        except ValueError as e:
+            # this guards against a poor polyfit line
+            print(e)
+        trendline_func = numpy.poly1d(z)
+        plt.xlabel('expected values')
+        plt.ylabel('model output')
+        plt.plot(
+            expected_values,
+            trendline_func(expected_values),
+            "r--", linewidth=1.5)
+        plt.scatter(expected_values, modeled_values, c='g', s=0.25)
+        plt.xlim(
+            min(min(modeled_values), min(expected_values)),
+            max(max(modeled_values), max(expected_values)))
+        plt.ylim(
+            min(min(modeled_values), min(expected_values)),
+            max(max(modeled_values), max(expected_values)))
+        r2 = sklearn.metrics.r2_score(expected_values, modeled_values)
+        r2_adjusted = 1-(1-r2)*(n-1)/(n-k-1)
+        if prefix == 'holdback':
+            LOGGER.info(
+                f'{model_name}-{prefix} adjusted R^2: {r2_adjusted:.3f}')
+        plt.title(
+            f'{args.prefix}{prefix} {model_name}\n'
+            f'$R^2={r2:.3f}$ -- Adjusted $R^2={r2_adjusted:.3f}$')
+        plt.savefig(os.path.join(
+            FIG_DIR, f'{args.prefix}{model_name}_{prefix}.png'))
+        plt.close()
 
     LOGGER.debug('all done')
 

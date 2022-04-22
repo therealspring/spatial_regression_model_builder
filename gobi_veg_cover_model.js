@@ -224,8 +224,8 @@ function init_ui() {
         panel.add(controls_label);
         var select_widget_list = [];
         var model_select_index = 1;
-        var select_placeholder_list = ['Select data ...', 'Select model ...'];
-        [[global_image_dict, 'image'], [global_model_dict, 'model']].forEach(
+        var select_placeholder_list = ['Select rangeland model ...', 'Select model data ...'];
+        [[global_model_dict, 'model'], [global_image_dict, 'image']].forEach(
             function (payload, index) {
                 var local_image_dict = payload[0];
                 var image_type = payload[1];
