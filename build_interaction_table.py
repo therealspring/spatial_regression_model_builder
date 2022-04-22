@@ -11,6 +11,14 @@ def main():
         'LST_Day_1km_06-01',
         'LST_Day_1km_07-01',
         'LST_Day_1km_08-01',
+        'LST_Day_1km_variance_01-01',
+        'LST_Day_1km_variance_02-01',
+        'LST_Day_1km_variance_03-01',
+        'LST_Day_1km_variance_04-01',
+        'LST_Day_1km_variance_05-01',
+        'LST_Day_1km_variance_06-01',
+        'LST_Day_1km_variance_07-01',
+        'LST_Day_1km_variance_08-01',
         ]
     night_temp = [
         'LST_Night_1km_01-01',
@@ -21,6 +29,14 @@ def main():
         'LST_Night_1km_06-01',
         'LST_Night_1km_07-01',
         'LST_Night_1km_08-01',
+        'LST_Night_1km_variance_01-01',
+        'LST_Night_1km_variance_02-01',
+        'LST_Night_1km_variance_03-01',
+        'LST_Night_1km_variance_04-01',
+        'LST_Night_1km_variance_05-01',
+        'LST_Night_1km_variance_06-01',
+        'LST_Night_1km_variance_07-01',
+        'LST_Night_1km_variance_08-01',
         ]
     ndvi = [
         'ndvi_06-01',
@@ -28,16 +44,21 @@ def main():
         'ndvi_08-01',
         'ndvi_09-01',
         'ndvi_10-01',
+        'ndvi_variance_06-01',
+        'ndvi_variance_07-01',
+        'ndvi_variance_08-01',
+        'ndvi_variance_09-01',
+        'ndvi_variance_10-01',
         ]
     precip = [
-        'precipitation_01-01',
-        'precipitation_02-01',
-        'precipitation_03-01',
-        'precipitation_04-01',
-        'precipitation_05-01',
-        'precipitation_06-01',
-        'precipitation_07-01',
-        'precipitation_08-01',
+        'precipitation_variance_01-01',
+        'precipitation_variance_02-01',
+        'precipitation_variance_03-01',
+        'precipitation_variance_04-01',
+        'precipitation_variance_05-01',
+        'precipitation_variance_06-01',
+        'precipitation_variance_07-01',
+        'precipitation_variance_08-01',
     ]
 
     print('term1,term2')

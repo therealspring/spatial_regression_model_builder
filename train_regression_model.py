@@ -392,6 +392,9 @@ def main():
     reg = make_pipeline(poly_features, StandardScaler(), LinearSVR(
         max_iter=max_iter, epsilon=1e-4,
         loss='epsilon_insensitive', dual=True, C=100))
+    reg = make_pipeline(poly_features, StandardScaler(), LinearSVR(
+        max_iter=max_iter, loss='squared_epsilon_insensitive',
+        epsilon=1e-4, dual=False))
     #('LinearSVR_v3', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='squared_epsilon_insensitive', epsilon=1e-4, dual=False))),
     #('LassoLarsCV', make_pipeline(poly_features, StandardScaler(),  LassoLarsCV(max_iter=max_iter, cv=10, eps=1e-3, normalize=False))),
     #('LassoLars', make_pipeline(poly_features, StandardScaler(),  LassoLars(alpha=.1, normalize=False, max_iter=max_iter, eps=1e-3))),
