@@ -33,19 +33,27 @@ for (var year=2019; year <= 2021; year++) {
   for (var month_index = 0; month_index < ndvi_dates.length/2; month_index++){
     var startDate =  ndvi_dates[month_index*2];
     var endDate = ndvi_dates[month_index*2+1];
-    var ndvi_fieldname = 'ndvi_'+startDate.slice(5,10);
+    var fieldname = startDate.slice(5,10);
+    var ndvi_variance_fieldname = 'ndvi_variance_'+startDate.slice(5,10);
 
     var ndvi = copernicus_collection
       .filterDate(startDate, endDate)
       .map(maskCloudAndShadows)
-      .map(calculateNDVI)
-      .mean()
-      .select(['ndvi'], [ndvi_fieldname]);
+      .map(calculateNDVI);
+
+    var ndvi_mean = ndvi
+        .mean()
+        .select(['ndvi'], ['ndvi_'+fieldname]);
     if (image_collection === null) {
-      image_collection = ndvi;
+      image_collection = ndvi_mean;
     } else {
-      image_collection = image_collection.addBands(ndvi);
+      image_collection = image_collection.addBands(ndvi_mean);
     }
+
+    var ndvi_var = ndvi
+        .reduce(ee.Reducer.variance())
+        .select(['ndvi_variance'], ['ndvi_variance_'+fieldname]);
+    image_collection = image_collection.addBands(ndvi_var);
   }
 
   var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31', year+'-11-01', year+'-11-30', year+'-12-01', year+'-12-31'];
@@ -56,16 +64,31 @@ for (var year=2019; year <= 2021; year++) {
     var fieldname = startDate.slice(5,10);
 
     var chirps = chirps_collection
-      .filterDate(startDate, endDate)
-      .mean()
-      .select(['precipitation'], ['precipitation_'+fieldname]);
-    image_collection = image_collection.addBands(chirps);
+      .filterDate(startDate, endDate);
+
+    var precip_mean = chirps
+        .mean()
+        .select(['precipitation'], ['precipitation_'+fieldname]);
+    image_collection = image_collection.addBands(precip_mean);
+
+    var precip_var = chirps
+        .reduce(ee.Reducer.variance())
+        .select(
+            ['precipitation_variance'], ['precipitation_variance_'+fieldname]);
+    image_collection = image_collection.addBands(precip_var);
 
     var modis = modis_collection
-      .filter(ee.Filter.date(startDate, endDate))
+      .filter(ee.Filter.date(startDate, endDate));
+    var modis_mean = modis
       .mean()
       .select(['LST_Day_1km', 'LST_Night_1km'], ['LST_Day_1km_'+fieldname, 'LST_Night_1km_'+fieldname]);
-    image_collection = image_collection.addBands(modis);
+    image_collection = image_collection.addBands(modis_mean);
+
+    var modis_var = modis
+      .reduce(ee.Reducer.variance())
+      .select(['LST_Day_1km_variance', 'LST_Night_1km_variance'], ['LST_Day_1km_variance_'+fieldname, 'LST_Night_1km_variance_'+fieldname]);
+    image_collection = image_collection.addBands(modis_var);
+
   }
   sample_array.push(image_collection.sampleRegions({
     collection: local_points,
