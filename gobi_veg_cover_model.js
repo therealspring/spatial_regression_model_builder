@@ -1,24 +1,3 @@
-var gobi_poly = ee.Geometry.Polygon([
-  [94.44030433008116,48.019653373738905],
-  [89.93590979883116,47.38380710077589],
-  [86.70592933008116,46.31692409629895],
-  [87.62878089258116,44.60646313164589],
-  [92.52868323633116,43.18150593188955],
-  [101.31774573633116,41.32769589982392],
-  [104.32799964258116,40.8308092616648],
-  [107.79967933008116,41.16248445444609],
-  [113.38073401758116,41.06315714478983],
-  [117.02819495508116,41.82082186478494],
-  [118.19274573633116,44.0247753967212],
-  [119.77477698633116,46.02782355846174],
-  [117.92907386133116,47.204976746235424],
-  [111.16149573633116,47.204976746235424],
-  [106.41540198633116,47.75442885863189],
-  [103.33923011133116,47.13028558462555],
-  [97.49450354883116,47.502691428436826],
-  [94.44030433008116,48.019653373738905]]);
-
-
 var global_image_dict = {};
 
 var veg_cover_model = {
@@ -232,8 +211,11 @@ function init_ui() {
                 var image_type = payload[1];
                 var select = ui.Select({
                     placeholder: select_placeholder_list[index],
-                    items: Object.keys(local_image_dict),
+                    items: Object.keys(local_image_dict).concat(['test']),
                     onChange: function(key, self) {
+                        if (key === 'test') {
+                          return;
+                        }
                         active_context.active_map_layer_id = key;
                         self.setDisabled(true);
                         active_context.validation_check.setDisabled(true);
@@ -266,7 +248,8 @@ function init_ui() {
                             self.setDisabled(false);
                             return;
                         }
-                        active_context.raster = local_image_dict[key];
+                        active_context.raster = local_image_dict[key].clip(
+                          gobi_poly);
                         var mean_reducer = ee.Reducer.percentile(
                             [10, 90], ['p10', 'p90']);
                         var meanDictionary = active_context.raster.reduceRegion({
@@ -299,6 +282,7 @@ function init_ui() {
                             active_context.validation_check.setDisabled(false);
 
                         });
+                        active_context.map.addLayer(gobi_poly);
                       }
             });
             select_widget_list.push(select);
@@ -369,18 +353,21 @@ function init_ui() {
         panel.add(validation_check);
 
         carbon_panel.add(ui.Label({
-            value: 'override forest edge val',
+            value: 'set model year',
             style:{'backgroundColor': 'rgba(0, 0, 0, 0)'}
         }));
 
-        var model_edge_override = ui.Textbox({
-            placeholder: 'using model',
+        var model_edge_override = ui.Slider({
+            min: 2019,
+            max: 2021,
+            step: 1,
             disabled: true,
             onChange: function (value) {
                 var model_id = select_widget_list[model_select_index].getValue();
-                var new_model = make_carbon_model(
-                    model_id, model_term_map[model_id],
-                    'gf_', value);
+                var term_list = model_term_map[model_id];
+                var new_model = make_rangeland_model(
+                  model_id, term_list, value);
+
                 if (active_context.last_layer !== null) {
                     active_context.map.remove(active_context.last_layer);
                 }
