@@ -128,11 +128,12 @@ function make_rangeland_model(model_id, term_list, year) {
       });
       rangeland_model_image = rangeland_model_image.add(term_image);
   }
-  global_model_dict[model_id] = rangeland_model_image;
+  global_model_dict[model_id] = rangeland_model_image.clip(gobi_poly);
   model_count -= 1;
   if (model_count == 0) {
       init_ui();
   }
+  return global_model_dict[model_id];
 }
 
 var model_term_map = {};
@@ -363,12 +364,6 @@ function init_ui() {
                 var model_id = select_widget_list[
                   model_select_index].getValue();
                 var term_list = model_term_map[model_id];
-                console.log(select_widget_list);
-                console.log(model_select_index);
-                console.log(model_id);
-                console.log(model_term_map);
-                console.log(model_term_map[model_id]);
-                console.log(term_list);
                 var new_model = make_rangeland_model(
                   model_id, term_list, value);
 
