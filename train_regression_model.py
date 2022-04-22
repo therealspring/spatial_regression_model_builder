@@ -5,9 +5,11 @@ import logging
 import os
 import pickle
 
+import ecoshard
 import matplotlib.pyplot as plt
 import pandas
 import sklearn.metrics
+import sklearn.svm
 from sklearn.linear_model import LassoLars
 from sklearn.linear_model import LassoLarsCV
 from sklearn.linear_model import TweedieRegressor
@@ -80,14 +82,15 @@ def load_data(
             gdf = pickle.load(geopandas_file).copy()
 
     rejected_outliers = {}
-    gdf.to_csv('dropped_base.csv')
+    #gdf.to_csv('dropped_base.csv')
     for column_id in gdf.columns:
         if gdf[column_id].dtype in (int, float, complex):
             outliers = list_outliers(gdf[column_id].to_numpy())
             if len(outliers) > 0:
+                LOGGER.warn(f'**** outliers being dropped {outliers}')
                 gdf.replace({column_id: outliers}, 0, inplace=True)
                 rejected_outliers[column_id] = outliers
-    gdf.to_csv('dropped.csv')
+    #gdf.to_csv('dropped.csv')
 
     # load predictor/response table
     predictor_response_table = pandas.read_csv(predictor_response_table_path)
@@ -254,7 +257,6 @@ def load_data(
         dataset_map[train_holdback_type] = (x_tensor.T, y_tensor.T)
         dataset_map[f'{train_holdback_type}_params'] = parameter_stats
 
-    gdf_filtered.to_csv('gdf_filtered.csv')
     return (
         predictor_response_table['predictor'].count(),
         predictor_response_table['response'].count(),
@@ -300,8 +302,8 @@ def r2_analysis(
 def _write_coeficient_table(poly_features, predictor_id_list, prefix, name, reg):
     poly_feature_id_list = poly_features.get_feature_names_out(
         predictor_id_list)
-    with open(os.path.join(
-            f"{prefix}coef_{name}.csv"), 'w') as table_file:
+    table_path = os.path.join(f"{prefix}{name}.csv")
+    with open(table_path, 'w') as table_file:
         print(f'LENGTH OF REG {len(reg)}')
         intercept = reg[-1].intercept_
         try:
@@ -326,6 +328,8 @@ def _write_coeficient_table(poly_features, predictor_id_list, prefix, name, reg)
             table_file.write(f"intercept,{intercept}\n")
             for feature_id, coef, pca, scale, mean in zip(poly_feature_id_list, reg[-1].coef_.flatten(), reg[-2].singular_values_, reg[-3].scale_.flatten(), reg[-3].mean_.flatten()):
                 table_file.write(f"{feature_id.replace(' ', '*')},{coef},{pca},{scale},{mean}\n")
+    ecoshard.hash_file(
+        table_path, rename=True, hash_algorithm='md5', hash_length=6)
 
 def root_name(path):
     return os.path.basename(os.path.splitext(path)[0])
@@ -362,7 +366,7 @@ def main():
         args.geopandas_data, args.n_rows,
         args.predictor_response_table, allowed_set)
     LOGGER.info(f'these are the predictors:\n{predictor_id_list}')
-    model_name = f'model_{root_name(args.geopandas_data)}'
+    model_name = f'model_{root_name(args.geopandas_data)}_{root_name(args.predictor_response_table)}'
     if args.interaction_columns is not None and len(args.interaction_columns) > 0:
         interaction_indexes = [
             predictor_id_list.index(predictor_id)
@@ -386,9 +390,8 @@ def main():
         model_name += f'_poly_features'
 
     reg = make_pipeline(poly_features, StandardScaler(), LinearSVR(
-        max_iter=max_iter, loss='epsilon_insensitive', epsilon=1e-4,
-        dual=True))
-    sample_weight_adjust = True
+        max_iter=max_iter, epsilon=1e-4,
+        loss='epsilon_insensitive', dual=True, C=100))
     #('LinearSVR_v3', make_pipeline(poly_features, StandardScaler(), LinearSVR(max_iter=max_iter, loss='squared_epsilon_insensitive', epsilon=1e-4, dual=False))),
     #('LassoLarsCV', make_pipeline(poly_features, StandardScaler(),  LassoLarsCV(max_iter=max_iter, cv=10, eps=1e-3, normalize=False))),
     #('LassoLars', make_pipeline(poly_features, StandardScaler(),  LassoLars(alpha=.1, normalize=False, max_iter=max_iter, eps=1e-3))),
@@ -396,11 +399,12 @@ def main():
 
     LOGGER.info(f'fitting data with {model_name}')
     kwargs = {}
+    sample_weight_adjust = False
     if sample_weight_adjust:
         kwargs = {
             reg.steps[-1][0] + '__sample_weight': (trainset[1].flatten()/max(trainset[1]))**1
             }
-    LOGGER.debug(kwargs)
+        LOGGER.debug(kwargs)
     model = reg.fit(trainset[0], trainset[1], **kwargs)
 
     LOGGER.info(f'saving coefficient table for {model_name}')
@@ -409,10 +413,10 @@ def main():
 
     k = trainset[0].shape[1]
     for expected_values, modeled_values, n, prefix in [
-            (testset[1].flatten(), model.predict(
-                testset[0]).flatten(), testset[0].shape[0], 'holdback'),
             (trainset[1].flatten(), model.predict(
                 trainset[0]).flatten(), trainset[0].shape[0], 'training'),
+            (testset[1].flatten(), model.predict(
+                testset[0]).flatten(), testset[0].shape[0], 'holdback'),
             ]:
         try:
             z = numpy.polyfit(expected_values, modeled_values, 1)
@@ -426,20 +430,17 @@ def main():
             expected_values,
             trendline_func(expected_values),
             "r--", linewidth=1.5)
-        plt.scatter(expected_values, modeled_values, c='g', s=0.25)
+        plt.scatter(expected_values, modeled_values, c='k', s=0.5, marker='.')
         plt.xlim(
-            min(min(modeled_values), min(expected_values)),
-            max(max(modeled_values), max(expected_values)))
+            0, max(max(modeled_values), max(expected_values)))
         plt.ylim(
-            min(min(modeled_values), min(expected_values)),
-            max(max(modeled_values), max(expected_values)))
+            0, max(max(modeled_values), max(expected_values)))
         r2 = sklearn.metrics.r2_score(expected_values, modeled_values)
         r2_adjusted = 1-(1-r2)*(n-1)/(n-k-1)
-        if prefix == 'holdback':
-            LOGGER.info(
-                f'{model_name}-{prefix} adjusted R^2: {r2_adjusted:.3f}')
+        LOGGER.info(
+            f'{prefix} - {model_name}-{prefix} adjusted R^2: {r2_adjusted:.3f}')
         plt.title(
-            f'{args.prefix}{prefix} {model_name}\n'
+            f'{model_name}\n{args.prefix}{prefix} '
             f'$R^2={r2:.3f}$ -- Adjusted $R^2={r2_adjusted:.3f}$')
         plt.savefig(os.path.join(
             FIG_DIR, f'{args.prefix}{model_name}_{prefix}.png'))
