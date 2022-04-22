@@ -22,7 +22,8 @@ var gobi_poly = ee.Geometry.Polygon([
 var global_image_dict = {};
 
 var veg_cover_model = {
-    'gobi_veg_model': gobi_veg_model,
+    'gobi_veg_cover_model': gobi_veg_cover_model,
+    'gobi_condition_model': gobi_condition_model,
 };
 
 // Load the carbon models
@@ -37,7 +38,7 @@ var first_panel = ui.Panel({
 }});
 
 first_panel.add(ui.Label({
-    value: 'LOADING....',
+    value: 'LOADING GOBI RANGELAND MODEL UI....',
     style: {
         fontSize: '24px',
         fontWeight: 'bold',
