@@ -246,7 +246,7 @@ function init_ui() {
                 var image_type = payload[1];
                 var select = ui.Select({
                     placeholder: select_placeholder_list[index],
-                    items: Object.keys(local_image_dict),
+                    items: Object.keys(local_image_dict).sort(),
                     onChange: function(key, self) {
                         active_context.active_map_layer_id = key;
                         self.setDisabled(true);
@@ -280,8 +280,6 @@ function init_ui() {
                             self.setDisabled(false);
                             return;
                         }
-                        console.log(key);
-                        console.log(local_image_dict[key]);
                         active_context.raster = local_image_dict[key].clip(
                           gobi_poly);
                         var mean_reducer = ee.Reducer.percentile(
