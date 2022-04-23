@@ -5,6 +5,11 @@ var veg_cover_model = {
     'gobi_condition_model': gobi_condition_model,
 };
 
+var property_by_model = {
+  'gobi_veg_cover_model': 'Veg_cover',
+  'gobi_condition_model': 'Condition',
+};
+
 // Load the carbon models
 var image_map = {};
 
@@ -78,15 +83,22 @@ function make_rangeland_model(model_id, term_list, year) {
   var sample_array = [];
   var ndvi_dates = [year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-30', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31'];
   for (var month_index = 0; month_index < ndvi_dates.length/2; month_index++){
-    startDate =  ndvi_dates[month_index*2];
-    endDate = ndvi_dates[month_index*2+1];
-    var ndvi_fieldname = 'ndvi_'+startDate.slice(5,10).replace(/-/g, "_");
+    var startDate =  ndvi_dates[month_index*2];
+    var endDate = ndvi_dates[month_index*2+1];
+    var fieldname = startDate.slice(5,10).replace(/-/g, "_");
+
     var ndvi = copernicus_collection
       .filterDate(startDate, endDate)
       .map(maskCloudAndShadows)
-      .map(calculateNDVI)
-      .mean();
-    global_image_dict[ndvi_fieldname] = ndvi.select(['ndvi'], ['B0']);
+      .map(calculateNDVI);
+
+    var ndvi_mean = ndvi
+        .mean();
+    global_image_dict['ndvi_'+fieldname] = ndvi_mean.select(['ndvi'], ['B0']);
+
+    var ndvi_var = ndvi
+        .reduce(ee.Reducer.variance());
+    global_image_dict['ndvi_'+fieldname] = ndvi_var.select(['ndvi_variance'], ['B0']);
   }
 
   var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31'];
@@ -96,16 +108,30 @@ function make_rangeland_model(model_id, term_list, year) {
     var fieldname = startDate.slice(5,10).replace(/-/g, "_");
 
     var chirps = chirps_collection
-      .filterDate(startDate, endDate)
-      .mean();
-    global_image_dict['precipitation_'+fieldname] = chirps.select(['precipitation'], ['B0']);
+      .filterDate(startDate, endDate);
+
+    var precip_mean = chirps
+        .mean();
+    global_image_dict['precipitation_'+fieldname] = precip_mean.select(['precipitation'], ['B0']);
+
+    var precip_var = chirps
+        .reduce(ee.Reducer.variance());
+    global_image_dict['precipitation_variance_'+fieldname] = precip_var.select(['precipitation_variance'], ['B0']);
 
     var modis = modis_collection
-      .filter(ee.Filter.date(startDate, endDate))
+      .filter(ee.Filter.date(startDate, endDate));
+    var modis_mean = modis
       .mean();
-    global_image_dict['LST_Day_1km_'+fieldname] = modis.select(['LST_Day_1km'], ['B0']);
-    global_image_dict['LST_Night_1km_'+fieldname] = modis.select(['LST_Night_1km'], ['B0']);
+    global_image_dict['LST_Day_1km_'+fieldname] = modis_mean.select(['LST_Day_1km'], ['B0']);
+    global_image_dict['LST_Night_1km_'+fieldname] = modis_mean.select(['LST_Night_1km'], ['B0']);
+
+    var modis_var = modis
+      .reduce(ee.Reducer.variance());
+    global_image_dict['LST_Day_1km_variance_'+fieldname] = modis_var.select(['LST_Day_1km_variance'], ['B0']);
+    global_image_dict['LST_Night_1km_variance_'+fieldname] = modis_var.select(['LST_Night_1km_variance'], ['B0']);
   }
+
+  console.log(global_image_dict);
 
   var i = null;
   // First term is the intercept, and renaming the band B0 because raw
@@ -201,7 +227,7 @@ function init_ui() {
             }
         });
         active_context.chart_panel = chart_panel;
-        Map.add(chart_panel);
+        active_context.map.add(chart_panel);
 
         var default_control_text = mapside[1]+' controls';
         var controls_label = ui.Label({
@@ -313,17 +339,17 @@ function init_ui() {
                     geometries: true,
                     scale: 10,
                 });
-
+                var model_property_str = property_by_model[active_context.active_map_layer_id];
                 var chart =
                   ui.Chart.feature
                     .byFeature({
                       features: validation_collection,
-                      xProperty: 'Veg_cover',
+                      xProperty: model_property_str,
                       yProperties: ['B0'],
                     })
                     .setChartType('ScatterChart')
                     .setOptions({
-                      title: 'Actual Veg_cover vs ' + active_context.active_map_layer_id,
+                      title: 'Actual '+model_property_str+' vs ' + active_context.active_map_layer_id,
                       hAxis:
                           {title: 'Modeled', titleTextStyle: {italic: false, bold: true}},
                       vAxis: {
@@ -333,9 +359,6 @@ function init_ui() {
                       pointSize: 3,
                       colors: ['009900'],
                     });
-                if (active_context.chart_panel === null) {
-
-                }
                 if (active_context.chart !== null) {
                   active_context.chart_panel.remove(active_context.chart);
                 }
@@ -348,8 +371,8 @@ function init_ui() {
                 var max_radius = 20;
                 var visualized_validation_collection = validation_collection.map(function (feature) {
                     return feature.set('style', {
-                        pointSize: ee.Number(feature.get('AGB')).subtract(feature.get('B0')).abs().divide(max_radius).min(max_radius),
-                        color: agb_vs_b0_color.get(ee.Number(feature.get('AGB')).lt(ee.Number(feature.get('B0')))),
+                        pointSize: ee.Number(feature.get(model_property_str)).subtract(feature.get('B0')).abs().divide(max_radius).min(max_radius),
+                        color: agb_vs_b0_color.get(ee.Number(feature.get(model_property_str)).lt(ee.Number(feature.get('B0')))),
                     });
                 });
                 visualized_validation_collection = visualized_validation_collection.style({

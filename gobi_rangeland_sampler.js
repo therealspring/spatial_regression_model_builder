@@ -34,7 +34,6 @@ for (var year=2019; year <= 2021; year++) {
     var startDate =  ndvi_dates[month_index*2];
     var endDate = ndvi_dates[month_index*2+1];
     var fieldname = startDate.slice(5,10);
-    var ndvi_variance_fieldname = 'ndvi_variance_'+startDate.slice(5,10);
 
     var ndvi = copernicus_collection
       .filterDate(startDate, endDate)
@@ -60,7 +59,6 @@ for (var year=2019; year <= 2021; year++) {
   for (var month_index = 0; month_index < year_dates.length/2; month_index++){
     var startDate =  year_dates[month_index*2];
     var endDate = year_dates[month_index*2+1];
-
     var fieldname = startDate.slice(5,10);
 
     var chirps = chirps_collection
