@@ -3,6 +3,8 @@ var global_image_dict = {};
 var veg_cover_model = {
     'gobi_veg_cover_model': gobi_veg_cover_model,
     'gobi_condition_model': gobi_condition_model,
+    'gobi_variance_veg_cover_model': gobi_variance_veg_cover_model,
+    'gobi_variance_condition_model': gobi_variance_condition_model,
 };
 
 var property_by_model = {
@@ -98,7 +100,7 @@ function make_rangeland_model(model_id, term_list, year) {
 
     var ndvi_var = ndvi
         .reduce(ee.Reducer.variance());
-    global_image_dict['ndvi_'+fieldname] = ndvi_var.select(['ndvi_variance'], ['B0']);
+    global_image_dict['ndvi_variance_'+fieldname] = ndvi_var.select(['ndvi_variance'], ['B0']);
   }
 
   var year_dates = [year+'-01-01', year+'-01-31', year+'-02-01', year+'-02-28', year+'-03-01', year+'-03-31', year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-31', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31'];
@@ -130,8 +132,6 @@ function make_rangeland_model(model_id, term_list, year) {
     global_image_dict['LST_Day_1km_variance_'+fieldname] = modis_var.select(['LST_Day_1km_variance'], ['B0']);
     global_image_dict['LST_Night_1km_variance_'+fieldname] = modis_var.select(['LST_Night_1km_variance'], ['B0']);
   }
-
-  console.log(global_image_dict);
 
   var i = null;
   // First term is the intercept, and renaming the band B0 because raw
@@ -280,6 +280,8 @@ function init_ui() {
                             self.setDisabled(false);
                             return;
                         }
+                        console.log(key);
+                        console.log(local_image_dict[key]);
                         active_context.raster = local_image_dict[key].clip(
                           gobi_poly);
                         var mean_reducer = ee.Reducer.percentile(
