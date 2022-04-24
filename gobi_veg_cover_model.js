@@ -207,6 +207,7 @@ function init_ui() {
             'validation_check': null,
             'active_map_layer_id': null,
             'gobi_poly_loaded': false,
+            'chart_panel': null,
         };
         active_context_map[mapside[1]] = active_context;
 
@@ -224,15 +225,6 @@ function init_ui() {
                 'backgroundColor': 'rgba(255, 255, 255, 0.4)'
             }
         });
-        var chart_panel = ui.Panel({
-          layout: ui.Panel.Layout.flow('vertical'),
-            style: {
-                'position': "top-"+mapside[1],
-                'backgroundColor': 'rgba(255, 255, 255, 0.4)'
-            }
-        });
-        active_context.chart_panel = chart_panel;
-        active_context.map.add(chart_panel);
 
         var default_control_text = mapside[1]+' controls';
         var controls_label = ui.Label({
@@ -349,6 +341,18 @@ function init_ui() {
                     scale: 10,
                 });
                 var model_property_str = property_by_model[active_context.active_map_layer_id];
+
+                if (active_context.chart_panel !== null) {
+                  active_context.map.remove(active_context.chart_panel);
+                }
+                active_context.chart_panel = ui.Panel({
+                  layout: ui.Panel.Layout.flow('vertical'),
+                    style: {
+                        'position': "top-"+mapside[1],
+                        'backgroundColor': 'rgba(255, 255, 255, 0.4)'
+                    }
+                });
+
                 var chart =
                   ui.Chart.feature
                     .byFeature({
@@ -368,18 +372,16 @@ function init_ui() {
                       pointSize: 3,
                       colors: ['009900'],
                     });
-                if (active_context.chart !== null) {
-                  active_context.chart_panel.remove(active_context.chart);
-                }
-                active_context.chart = active_context.chart_panel.add(chart);
+                active_context.map.add(active_context.chart_panel);
+                active_context.chart_panel.add(chart);
+                console.log(active_context);
+
 
                 var agb_vs_b0_color = ee.Dictionary({
                     1: 'blue',
                     0: 'red',
                 });
                 var max_radius = 20;
-                console.log(validation_collection);
-                console.log(model_property_str);
                 var visualized_validation_collection = validation_collection.map(function (feature) {
                     return feature.set('style', {
                         pointSize: ee.Number(feature.get(model_property_str)).subtract(feature.get('B0')).abs().divide(max_radius).min(max_radius),
@@ -394,10 +396,8 @@ function init_ui() {
                 active_context.validation_layer = active_context.map.addLayer(
                     visualized_validation_collection);
               } else {
-                if (active_context.chart !== null) {
-                  active_context.chart_panel.remove(active_context.chart);
-                  active_context.map.remove(active_context.validation_layer);
-                }
+                active_context.map.remove(active_context.chart_panel);
+                active_context.map.remove(active_context.validation_layer);
               }
             }
         });
