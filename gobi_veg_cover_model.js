@@ -36,6 +36,8 @@ first_panel.add(ui.Label({
 Map.add(first_panel);
 
 
+var default_year = 2019;
+
 var legend_styles = {
     'black_to_red': ['000000', '005aff', '43c8c8', 'fff700', 'ff0000'],
     'blue_to_green': ['440154', '414287', '218e8d', '5ac864', 'fde725'],
@@ -175,7 +177,7 @@ Object.keys(veg_cover_model).forEach(function (model_id) {
     //Create Carbon Regression Image based on table coefficients
     table_to_list.evaluate(function (term_list) {
         model_term_map[model_id] = term_list;
-        make_rangeland_model(model_id, term_list, 2019);
+        make_rangeland_model(model_id, term_list, default_year);
     });
 });
 
@@ -208,6 +210,7 @@ function init_ui() {
             'active_map_layer_id': null,
             'gobi_poly_loaded': false,
             'chart_panel': null,
+            'current_model_year': default_year,
         };
         active_context_map[mapside[1]] = active_context;
 
@@ -248,7 +251,7 @@ function init_ui() {
                         active_context.active_map_layer_id = key;
                         self.setDisabled(true);
                         active_context.validation_check.setDisabled(true);
-                        active_context.model_edge_override.setDisabled(
+                        active_context.model_year.setDisabled(
                             true);
                         var original_value = self.getValue();
                         self.setPlaceholder('(loading ...) ' + original_value);
@@ -305,7 +308,7 @@ function init_ui() {
                             self.setDisabled(false);
 
                             if (image_type === 'model') {
-                                active_context.model_edge_override.setDisabled(
+                                active_context.model_year.setDisabled(
                                     false);
                             }
                             active_context.validation_check.setDisabled(false);
@@ -353,6 +356,7 @@ function init_ui() {
                     }
                 });
 
+                console.log(validation_collection);
                 var chart =
                   ui.Chart.feature
                     .byFeature({
@@ -362,7 +366,7 @@ function init_ui() {
                     })
                     .setChartType('ScatterChart')
                     .setOptions({
-                      title: 'Observed '+model_property_str+' vs ' + active_context.active_map_layer_id,
+                      title: active_context.current_model_year + ' - Observed '+model_property_str+' vs ' + active_context.active_map_layer_id,
                       hAxis:
                           {title: 'Observed', titleTextStyle: {italic: false, bold: true}},
                       vAxis: {
@@ -409,9 +413,10 @@ function init_ui() {
             style:{'backgroundColor': 'rgba(0, 0, 0, 0)'}
         }));
 
-        var model_edge_override = ui.Slider({
+        var model_year = ui.Slider({
             min: 2019,
             max: 2021,
+            value: default_year,
             step: 1,
             disabled: true,
             onChange: function (value) {
@@ -427,11 +432,12 @@ function init_ui() {
                 active_context.raster = new_model;
                 active_context.last_layer = active_context.map.addLayer(
                     active_context.raster, active_context.visParams);
+                active_context.current_model_year = value;
                 }
             }
         );
-        carbon_panel.add(model_edge_override);
-        active_context.model_edge_override = model_edge_override;
+        carbon_panel.add(model_year);
+        active_context.model_year = model_year;
 
         panel.add(carbon_panel);
 
