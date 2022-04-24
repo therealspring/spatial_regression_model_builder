@@ -362,9 +362,9 @@ function init_ui() {
                     })
                     .setChartType('ScatterChart')
                     .setOptions({
-                      title: 'Actual '+model_property_str+' vs ' + active_context.active_map_layer_id,
+                      title: 'Observed '+model_property_str+' vs ' + active_context.active_map_layer_id,
                       hAxis:
-                          {title: 'Modeled', titleTextStyle: {italic: false, bold: true}},
+                          {title: 'Observed', titleTextStyle: {italic: false, bold: true}},
                       vAxis: {
                         title: 'Raster Value',
                         titleTextStyle: {italic: false, bold: true}
