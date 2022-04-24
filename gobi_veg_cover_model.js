@@ -357,10 +357,11 @@ function init_ui() {
                 });
 
                 console.log(validation_collection);
+                var filtered_validation_collection = validation_collection.filter(ee.Filter.eq('Year', active_context.current_model_year));
                 var chart =
                   ui.Chart.feature
                     .byFeature({
-                      features: validation_collection,
+                      features: filtered_validation_collection,
                       xProperty: model_property_str,
                       yProperties: ['B0'],
                     })
@@ -386,7 +387,7 @@ function init_ui() {
                     0: 'red',
                 });
                 var max_radius = 20;
-                var visualized_validation_collection = validation_collection.map(function (feature) {
+                var visualized_validation_collection = filtered_validation_collection.map(function (feature) {
                     return feature.set('style', {
                         pointSize: ee.Number(feature.get(model_property_str)).subtract(feature.get('B0')).abs().divide(max_radius).min(max_radius),
                         color: agb_vs_b0_color.get(ee.Number(feature.get(model_property_str)).lt(ee.Number(feature.get('B0')))),
