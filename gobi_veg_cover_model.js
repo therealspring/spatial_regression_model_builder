@@ -356,7 +356,6 @@ function init_ui() {
                     }
                 });
 
-                console.log(validation_collection);
                 var filtered_validation_collection = validation_collection.filter(ee.Filter.eq('Year', active_context.current_model_year));
                 var chart =
                   ui.Chart.feature
@@ -379,9 +378,6 @@ function init_ui() {
                     });
                 active_context.map.add(active_context.chart_panel);
                 active_context.chart_panel.add(chart);
-                console.log(active_context);
-
-
                 var agb_vs_b0_color = ee.Dictionary({
                     1: 'blue',
                     0: 'red',
@@ -434,8 +430,13 @@ function init_ui() {
                 active_context.last_layer = active_context.map.addLayer(
                     active_context.raster, active_context.visParams);
                 active_context.current_model_year = value;
+                if (validation_check.getValue()) {
+                  // retrigger graph drawing
+                  validation_check.setValue(false);
+                  validation_check.setValue(true);
                 }
             }
+          }
         );
         carbon_panel.add(model_year);
         active_context.model_year = model_year;
@@ -615,3 +616,27 @@ function init_ui() {
     panel_list[0][0].add(clone_to_right);
     panel_list[1][0].add(clone_to_left);
 } // end ui definition
+
+Object.keys(veg_cover_model).forEach(function (model_id) {
+    var table = veg_cover_model[model_id];
+    var table_to_list = table.toList(table.size());
+    //Create Carbon Regression Image based on table coefficients
+    table_to_list.evaluate(function (term_list) {
+        model_term_map[model_id] = term_list;
+        [2019, 2020, 2021].forEach(function (model_year) {
+          var model_image = make_rangeland_model(model_id, term_list, model_year);
+          var model_filename = model_id + '_' + model_year;
+
+          Export.image.toCloudStorage({
+            'image': model_image,
+            'description': model_filename,
+            'bucket': 'ecoshard-root',
+            'fileNamePrefix': 'rangeland_model/'+model_filename,
+            'maxPixels': 1e12,
+            'fileFormat': 'GeoTIFF',
+            'region': gobi_poly,
+            'crs': 'epsg:4326',
+        });
+      });
+    });
+});
