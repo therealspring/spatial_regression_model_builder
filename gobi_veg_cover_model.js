@@ -5,11 +5,15 @@ var veg_cover_model = {
     'gobi_condition_model': gobi_condition_model,
     'gobi_variance_veg_cover_model': gobi_variance_veg_cover_model,
     'gobi_variance_condition_model': gobi_variance_condition_model,
+    'gobi_veg_cover_ndvi_only_model': gobi_veg_cover_ndvi_only_model,
 };
 
 var property_by_model = {
   'gobi_veg_cover_model': 'Veg_cover',
   'gobi_condition_model': 'Condition',
+  'gobi_variance_veg_cover_model': 'Veg_cover',
+  'gobi_variance_condition_model': 'Condition',
+  'gobi_veg_cover_ndvi_only_model': 'Veg_cover',
 };
 
 // Load the carbon models
@@ -202,6 +206,7 @@ function init_ui() {
             'validation_layer': null,
             'validation_check': null,
             'active_map_layer_id': null,
+            'gobi_poly_loaded': false,
         };
         active_context_map[mapside[1]] = active_context;
 
@@ -254,7 +259,7 @@ function init_ui() {
                         active_context.model_edge_override.setDisabled(
                             true);
                         var original_value = self.getValue();
-                        self.setPlaceholder('loading ...');
+                        self.setPlaceholder('(loading ...) ' + original_value);
                         var other_index = (index+1)%2;
                         select_widget_list[other_index].setValue(null, false);
                         select_widget_list[other_index].setPlaceholder(
@@ -314,7 +319,10 @@ function init_ui() {
                             active_context.validation_check.setDisabled(false);
 
                         });
-                        active_context.map.addLayer(gobi_poly);
+                        if (active_context.gobi_poly_loaded == false) {
+                          active_context.map.addLayer(gobi_poly);
+                          active_context.gobi_poly_loaded = true;
+                        }
                       }
             });
             select_widget_list.push(select);
@@ -334,6 +342,7 @@ function init_ui() {
             value: false,
             disabled: true,
             onChange: function (checked, self) {
+              if (checked) {
                 var validation_collection = active_context.raster.sampleRegions({
                     collection: validation_points,
                     geometries: true,
@@ -362,13 +371,15 @@ function init_ui() {
                 if (active_context.chart !== null) {
                   active_context.chart_panel.remove(active_context.chart);
                 }
-                active_context.chart_panel.add(chart);
+                active_context.chart = active_context.chart_panel.add(chart);
 
                 var agb_vs_b0_color = ee.Dictionary({
                     1: 'blue',
                     0: 'red',
                 });
                 var max_radius = 20;
+                console.log(validation_collection);
+                console.log(model_property_str);
                 var visualized_validation_collection = validation_collection.map(function (feature) {
                     return feature.set('style', {
                         pointSize: ee.Number(feature.get(model_property_str)).subtract(feature.get('B0')).abs().divide(max_radius).min(max_radius),
@@ -382,7 +393,12 @@ function init_ui() {
 
                 active_context.validation_layer = active_context.map.addLayer(
                     visualized_validation_collection);
-
+              } else {
+                if (active_context.chart !== null) {
+                  active_context.chart_panel.remove(active_context.chart);
+                  active_context.map.remove(active_context.validation_layer);
+                }
+              }
             }
         });
         active_context.validation_check = validation_check;
