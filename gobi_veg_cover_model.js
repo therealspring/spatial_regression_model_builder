@@ -370,7 +370,7 @@ function init_ui() {
                       hAxis:
                           {title: 'Observed', titleTextStyle: {italic: false, bold: true}},
                       vAxis: {
-                        title: 'Raster Value',
+                        title: 'Modelled Value',
                         titleTextStyle: {italic: false, bold: true}
                       },
                       pointSize: 3,
@@ -636,6 +636,7 @@ Object.keys(veg_cover_model).forEach(function (model_id) {
             'fileFormat': 'GeoTIFF',
             'region': gobi_poly,
             'crs': 'epsg:4326',
+            'scale': 10,
         });
       });
     });
