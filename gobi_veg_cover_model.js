@@ -78,9 +78,7 @@ Map.setCenter(0, 0, 3);
 
 var model_count = Object.keys(veg_cover_model).length;
 
-function make_rangeland_model(model_id, term_list, year) {
-  var startDate = null;
-  var endDate = null;
+function build_images_by_year(year) {
   var copernicus_collection = ee.ImageCollection('COPERNICUS/S2_SR')
     .filter(ee.Filter.bounds(gobi_poly));
   var modis_collection = ee.ImageCollection('MODIS/006/MOD11A2')
@@ -88,12 +86,12 @@ function make_rangeland_model(model_id, term_list, year) {
   var chirps_collection = ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
     .filter(ee.Filter.bounds(gobi_poly));
 
-  var sample_array = [];
   var ndvi_dates = [year+'-04-01', year+'-04-30', year+'-05-01', year+'-05-30', year+'-06-01', year+'-06-30', year+'-07-01', year+'-07-31', year+'-08-01', year+'-08-31', year+'-09-01', year+'-09-30', year+'-10-01', year+'-10-31'];
   for (var month_index = 0; month_index < ndvi_dates.length/2; month_index++){
-    var startDate =  ndvi_dates[month_index*2];
-    var endDate = ndvi_dates[month_index*2+1];
-    var fieldname = startDate.slice(5,10).replace(/-/g, "_");
+    var startDate, endDate, fieldname;
+    startDate =  ndvi_dates[month_index*2];
+    endDate = ndvi_dates[month_index*2+1];
+    fieldname = startDate.slice(5,10).replace(/-/g, "_");
 
     var ndvi = copernicus_collection
       .filterDate(startDate, endDate)
@@ -113,7 +111,7 @@ function make_rangeland_model(model_id, term_list, year) {
   for (month_index = 0; month_index < year_dates.length/2; month_index++){
     startDate =  year_dates[month_index*2];
     endDate = year_dates[month_index*2+1];
-    var fieldname = startDate.slice(5,10).replace(/-/g, "_");
+    fieldname = startDate.slice(5,10).replace(/-/g, "_");
 
     var chirps = chirps_collection
       .filterDate(startDate, endDate);
@@ -138,6 +136,12 @@ function make_rangeland_model(model_id, term_list, year) {
     global_image_dict['LST_Day_1km_variance_'+fieldname] = modis_var.select(['LST_Day_1km_variance'], ['B0']);
     global_image_dict['LST_Night_1km_variance_'+fieldname] = modis_var.select(['LST_Night_1km_variance'], ['B0']);
   }
+}
+
+function make_rangeland_model(model_id, term_list, year) {
+  build_images_by_year(year);
+
+  var sample_array = [];
 
   var i = null;
   // First term is the intercept, and renaming the band B0 because raw
@@ -198,6 +202,7 @@ function init_ui() {
     var active_context_map = {};
     [[Map, 'left'], [linkedMap, 'right']].forEach(function(mapside, index) {
         var active_context = {
+            'raster_type': null,
             'last_layer': null,
             'raster': null,
             'point_val': null,
@@ -237,8 +242,69 @@ function init_ui() {
             }
         });
         panel.add(controls_label);
+
+        var data_model_panel = ui.Panel({
+            layout: ui.Panel.Layout.Flow('vertical'),
+            style: {
+                padding: '0px',
+                backgroundColor: 'rgba(255, 255, 255, 0.4)'
+            }
+        });
+
+        data_model_panel.add(ui.Label({
+            value: 'Data and model year',
+            style:{'backgroundColor': 'rgba(0, 0, 0, 0)'}
+        }));
+
+
         var select_widget_list = [];
         var model_select_index = 1;
+        var image_select_index = 0;
+
+        var model_year = ui.Slider({
+            min: 2019,
+            max: 2021,
+            value: default_year,
+            step: 1,
+            disabled: true,
+            onChange: function (new_year) {
+
+                if (active_context.last_layer !== null) {
+                    active_context.map.remove(active_context.last_layer);
+                }
+                if (active_context.raster_type == 'model') {
+                  var model_id = select_widget_list[
+                    model_select_index].getValue();
+                  var term_list = model_term_map[model_id];
+                  var new_model = make_rangeland_model(
+                    model_id, term_list, new_year);
+                  active_context.raster = new_model;
+                  active_context.last_layer = active_context.map.addLayer(
+                      active_context.raster, active_context.visParams);
+                  if (validation_check.getValue()) {
+                    // retrigger graph drawing
+                    validation_check.setValue(false);
+                    validation_check.setValue(true);
+                  }
+                } else {
+                  // update the image
+                  var image_id = select_widget_list[
+                    image_select_index].getValue();
+                  build_images_by_year(new_year);
+                  active_context.raster = global_image_dict[image_id].clip(
+                    gobi_poly);
+                  active_context.last_layer = active_context.map.addLayer(
+                      active_context.raster, active_context.visParams);
+                }
+                active_context.current_model_year = new_year;
+
+            }
+          }
+        );
+        data_model_panel.add(model_year);
+
+        active_context.model_year = model_year;
+
         var select_placeholder_list = ['Select model data ...', 'Select rangeland model ...'];
         [[global_image_dict, 'image'], [global_model_dict, 'model']].forEach(
             function (payload, index) {
@@ -248,11 +314,11 @@ function init_ui() {
                     placeholder: select_placeholder_list[index],
                     items: Object.keys(local_image_dict).sort(),
                     onChange: function(key, self) {
+                        active_context.raster_type = image_type;
                         active_context.active_map_layer_id = key;
                         self.setDisabled(true);
                         active_context.validation_check.setDisabled(true);
-                        active_context.model_year.setDisabled(
-                            true);
+                        active_context.model_year.setDisabled(true);
                         var original_value = self.getValue();
                         self.setPlaceholder('(loading ...) ' + original_value);
                         var other_index = (index+1)%2;
@@ -300,19 +366,20 @@ function init_ui() {
                             active_context.last_layer = active_context.map.addLayer(
                                 active_context.raster, active_context.visParams);
 
-                            min_val.setValue(active_context.visParams.min, false);
-                            max_val.setValue(active_context.visParams.max, false);
+                            min_val.setValue(
+                              active_context.visParams.min, false);
+                            max_val.setValue(
+                              active_context.visParams.max, false);
                             min_val.setDisabled(false);
                             max_val.setDisabled(false);
                             self.setValue(original_value, false);
                             self.setDisabled(false);
 
+                            active_context.model_year.setDisabled(false);
                             if (image_type === 'model') {
-                                active_context.model_year.setDisabled(
-                                    false);
+                              active_context.validation_check.setDisabled(
+                                false);
                             }
-                            active_context.validation_check.setDisabled(false);
-
                         });
                         if (active_context.gobi_poly_loaded == false) {
                           active_context.map.addLayer(gobi_poly);
@@ -321,15 +388,7 @@ function init_ui() {
                       }
             });
             select_widget_list.push(select);
-            panel.add(select);
-        });
-
-        var carbon_panel = ui.Panel({
-            layout: ui.Panel.Layout.Flow('vertical'),
-            style: {
-                padding: '0px',
-                backgroundColor: 'rgba(255, 255, 255, 0.4)'
-            }
+            data_model_panel.add(select);
         });
 
         var validation_check = ui.Checkbox({
@@ -403,45 +462,9 @@ function init_ui() {
             }
         });
         active_context.validation_check = validation_check;
-        panel.add(validation_check);
+        data_model_panel.add(validation_check);
 
-        carbon_panel.add(ui.Label({
-            value: 'set model year',
-            style:{'backgroundColor': 'rgba(0, 0, 0, 0)'}
-        }));
-
-        var model_year = ui.Slider({
-            min: 2019,
-            max: 2021,
-            value: default_year,
-            step: 1,
-            disabled: true,
-            onChange: function (value) {
-                var model_id = select_widget_list[
-                  model_select_index].getValue();
-                var term_list = model_term_map[model_id];
-                var new_model = make_rangeland_model(
-                  model_id, term_list, value);
-
-                if (active_context.last_layer !== null) {
-                    active_context.map.remove(active_context.last_layer);
-                }
-                active_context.raster = new_model;
-                active_context.last_layer = active_context.map.addLayer(
-                    active_context.raster, active_context.visParams);
-                active_context.current_model_year = value;
-                if (validation_check.getValue()) {
-                  // retrigger graph drawing
-                  validation_check.setValue(false);
-                  validation_check.setValue(true);
-                }
-            }
-          }
-        );
-        carbon_panel.add(model_year);
-        active_context.model_year = model_year;
-
-        panel.add(carbon_panel);
+        panel.add(data_model_panel);
 
         var min_val = ui.Textbox(0, 0, function (value) {
             active_context.visParams.min = +(value);
@@ -617,6 +640,7 @@ function init_ui() {
     panel_list[1][0].add(clone_to_left);
 } // end ui definition
 
+/*
 Object.keys(veg_cover_model).forEach(function (model_id) {
     var table = veg_cover_model[model_id];
     var table_to_list = table.toList(table.size());
@@ -641,3 +665,4 @@ Object.keys(veg_cover_model).forEach(function (model_id) {
       });
     });
 });
+*/
